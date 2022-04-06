@@ -32,6 +32,7 @@ public class MeshManager : MonoBehaviour
         else
         {
             GenerateVerticesForSubMeshes();
+            GetAllSubMeshes();
         }
 
     }
@@ -99,72 +100,20 @@ public class MeshManager : MonoBehaviour
     private void GenerateVerticesForSubMeshes()
     {
 
-        for (int z = 0; z <= gridHeight; z++)
+        for (int z = 0; z < gridHeight; z++)
         {
-            for (int x = 0; x <= gridWidth; x++)
+            for (int x = 0; x < gridWidth; x++)
             { 
                 Vector3[] vertex = new Vector3[4];
                 vertex[0] = new Vector3(x, 0 , z);
                 vertex[1] = new Vector3(x + 1, 0, z);
-                vertex[2] = new Vector3(x, 0, z);
+                vertex[2] = new Vector3(x, 0, z + 1);
                 vertex[3] = new Vector3(x + 1, 0, z +1);
-                GenerateSingleTile(vertex);
 
+                GenerateSingleTile(vertex);
             }
         }
         hasBeenGenerated = true;
-    }
-
-    private void CreateAllSubMeshes()
-    {
-        mesh.subMeshCount = gridHeight * gridWidth;
-
-        int[] subMeshTriangles = new int[6];
-
-        int vert = 0;
-        int tris = 0;
-        for (int z = 0; z < gridHeight; z++)
-        {
-            for (int x = 0; x < gridWidth; x++)
-            {
-                triangles[tris + 0] = vert + 0;
-                triangles[tris + 1] = vert + gridWidth + 1;
-                triangles[tris + 2] = vert + 1;
-                triangles[tris + 3] = vert + gridWidth + 1;
-                triangles[tris + 4] = vert + gridWidth + 2;
-                triangles[tris + 5] = vert + 1;
-
-                vert++;
-                tris += 6;
-            }
-            vert++;
-        }
-    }
-
-    private Mesh GenerateSingleSubMesh()
-    {
-        Mesh subMesh = new Mesh();
-
-        Vector3[] subVerts = new Vector3[4];
-        int[] subTriangles = new int[6];
-
-        subVerts[0] = new Vector3(0, 0, 0);
-        subVerts[1] = new Vector3(0, 0, -1);
-        subVerts[2] = new Vector3(-1, 0, -1);
-        subVerts[3] = new Vector3(-1, 0, 0);
-
-        subTriangles[0] = 0;
-        subTriangles[1] = 1;
-        subTriangles[2] = 2;
-        subTriangles[3] = 2;
-        subTriangles[4] = 3;
-        subTriangles[5] = 0;
-
-        subMesh.Clear();
-        subMesh.vertices = subVerts;
-        subMesh.triangles = subTriangles;
-
-        return subMesh;
     }
 
     private void GenerateSingleTile(Vector3[] tileVerts)
@@ -180,9 +129,41 @@ public class MeshManager : MonoBehaviour
         newTile.transform.parent = gameObject.transform;
         newTile.AddComponent<MeshFilter>();
         newTile.AddComponent<MeshRenderer>();
+
         Mesh tileMesh = new Mesh();
         newTile.GetComponent<MeshFilter>().mesh = tileMesh;
+
+        // Due to Mesh Renderer taking coords from local space
+        // Its adding tileVerts twice (once for newTile transform and once for vertices)
+        tileVerts[0] -= newTile.transform.position;
+        tileVerts[1] -= newTile.transform.position;
+        tileVerts[2] -= newTile.transform.position;
+        tileVerts[3] -= newTile.transform.position;
+
         tileMesh.vertices = tileVerts;
+
+        int[] subTriangles = new int[6];
+        subTriangles[0] = 0;
+        subTriangles[1] = 2; 
+        subTriangles[2] = 1; 
+        subTriangles[3] = 2; 
+        subTriangles[4] = 3;
+        subTriangles[5] = 1;
+
+        tileMesh.triangles = subTriangles;
+    }
+
+    private void GetAllSubMeshes()
+    {
+        int numberOfChildren = gameObject.transform.childCount;        
+
+        for (int i = 0; i < numberOfChildren; i++)
+        {
+            Material newMat = new Material(Shader.Find("Specular"));
+            newMat.color = Color.Lerp(Color.white, Color.black, ((float)i / (float)numberOfChildren));
+            gameObject.transform.GetChild(i).GetComponent<MeshRenderer>().material = newMat;
+        }
+
     }
 
     private void OnDrawGizmos()
@@ -192,7 +173,7 @@ public class MeshManager : MonoBehaviour
             for (int i = 0; i < gameObject.transform.childCount; i++)
             {
                 Transform child = gameObject.transform.GetChild(i);
-                Gizmos.DrawSphere(child.transform.position , .1f);
+                Gizmos.DrawSphere(child.position , .1f);
             }
             return;
         }
